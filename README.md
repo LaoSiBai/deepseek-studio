@@ -180,6 +180,17 @@ HTTPS_PROXY=http://127.0.0.1:7890
 
 终端里已有的 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量同样生效；`localhost` 和 `127.0.0.1` 会自动绕过代理。修改 `.env` 后 Vite 会自动重启，刷新页面即可看到右上角的 key 状态变化。
 
+## 部署
+
+线上地址：**https://laosibai.github.io/deepseek-studio/**（GitHub Pages，推送 `main` 自动构建部署）
+
+静态部署没有本地代理，前端会探测 `/api/env`：存在则走代理，不存在则自动切换为**浏览器直连**。DeepSeek 官方接口允许跨域，所以在「连接设置」里填自己的 key 就能直接用。
+
+自定义域 `studio.laosibai.com` 还需要两步：
+
+1. Cloudflare DNS 添加 `CNAME studio → laosibai.github.io`
+2. GitHub 仓库 Settings → Pages → Custom domain 填 `studio.laosibai.com`
+
 ## 项目结构
 
 ```
