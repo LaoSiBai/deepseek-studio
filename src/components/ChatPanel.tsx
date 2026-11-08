@@ -11,10 +11,11 @@ interface Props {
   run: RunState | null;
   running: boolean;
   onSend: (text: string, images: ImageAttachment[]) => Promise<void>;
+  onSendExisting: () => Promise<void>;
   onStop: () => void;
 }
 
-export function ChatPanel({ run, running, onSend, onStop }: Props) {
+export function ChatPanel({ run, running, onSend, onSendExisting, onStop }: Props) {
   const { state, dispatch } = useStudio();
   const isMobile = useIsMobile();
   const [input, setInput] = useState('');
@@ -31,6 +32,12 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
       message.role !== 'system' &&
       (message.content.trim() || message.images?.length || message.reasoning_content),
   );
+
+  const lastMessage = messages[messages.length - 1];
+  const canResume =
+    Boolean(lastMessage) &&
+    lastMessage.role === 'user' &&
+    Boolean(lastMessage.content.trim() || lastMessage.images?.length);
 
   useEffect(() => {
     const node = scrollRef.current;
@@ -149,6 +156,14 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
       </div>
 
       <div className="ds-chat__composer">
+        {canResume && !running && (
+          <div className="ds-chat__resume">
+            <span>最后一条 user 消息还没有回复</span>
+            <button type="button" onClick={() => void onSendExisting()}>
+              继续发送
+            </button>
+          </div>
+        )}
         {pendingImages.length > 0 && (
           <div className="ds-chat__pending">
             {pendingImages.map((image) => (

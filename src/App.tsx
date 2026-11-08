@@ -180,7 +180,15 @@ function Studio() {
   const send = useCallback(async (override?: Workspace): Promise<RunOutcome | null> => {
     if (abortRef.current) return null;
     const workspace = override ?? state.workspace;
-    const snapshot = buildRequestBody(workspace);
+    // 上一次运行自动追加的 assistant 不算上下文：重发/重新回答时不应把它带给模型
+    const rawMessages = workspace.messages;
+    const lastMessage = rawMessages[rawMessages.length - 1];
+    const requestMessages =
+      lastMessage?.role === 'assistant' && lastMessage.id.startsWith('auto-')
+        ? rawMessages.slice(0, -1)
+        : rawMessages;
+    const requestWorkspace = { ...workspace, messages: requestMessages };
+    const snapshot = buildRequestBody(requestWorkspace);
     if (snapshot.error) {
       toast(snapshot.error.split('\n')[0], 'error');
       setTab('raw');
@@ -189,7 +197,7 @@ function Studio() {
 
     const endpoint = workspace.endpoint;
     const params = workspace.params;
-    const messages = workspace.messages;
+    const messages = requestMessages;
     const extraBody = workspace.extraBody;
     const body = snapshot.body;
     const controller = new AbortController();
@@ -275,6 +283,18 @@ function Studio() {
         reasoning: outcome.reasoning,
         error: null,
       });
+      if (outcome.content || outcome.toolCalls.length > 0) {
+        dispatch({
+          type: 'run/commit',
+          message: {
+            id: `auto-${id}`,
+            role: 'assistant',
+            content: outcome.content,
+            reasoning_content: outcome.reasoning || undefined,
+            tool_calls: outcome.toolCalls.length > 0 ? clone(outcome.toolCalls) : undefined,
+          },
+        });
+      }
       return outcome;
     } catch (err) {
       flushRunEvents();
@@ -334,7 +354,7 @@ function Studio() {
     }
   }, [state.workspace, pushHistory, queueRunEvent, flushRunEvents]);
 
-  /** Chat 模式：先落一条 user 消息，再把整段上下文发出去，成功后追加 assistant */
+  /** Chat 模式：先落一条 user 消息，再把整段上下文发出去（结果由 send 统一入上下文） */
   const sendChat = useCallback(
     async (text: string, images: ImageAttachment[] = []) => {
       const trimmed = text.trim();
@@ -353,23 +373,16 @@ function Studio() {
       };
       const nextMessages = [...base, userMessage];
       dispatch({ type: 'messages/set', messages: nextMessages });
-      const outcome = await send({ ...state.workspace, messages: nextMessages });
-      if (outcome && (outcome.content || outcome.toolCalls.length > 0)) {
-        dispatch({
-          type: 'message/append',
-          message: {
-            id: uid('m'),
-            role: 'assistant',
-            content: outcome.content,
-            reasoning_content: outcome.reasoning || undefined,
-            tool_calls:
-              outcome.toolCalls.length > 0 ? clone(outcome.toolCalls) : undefined,
-          },
-        });
-      }
+      await send({ ...state.workspace, messages: nextMessages });
     },
     [state.workspace, dispatch, send],
   );
+
+  /** 直接发送上下文中已有的最后一条 user（Studio 写好提示词后切到 Chat 用） */
+  const sendExisting = useCallback(async () => {
+    if (abortRef.current) return;
+    await send({ ...state.workspace, messages: state.workspace.messages });
+  }, [state.workspace, send]);
 
   const stop = useCallback(() => {
     abortRef.current?.abort();
@@ -498,7 +511,13 @@ function Studio() {
         <div className="ds-mobile-backdrop" onClick={closeDrawer} />
 
         {mode === 'chat' ? (
-          <ChatPanel run={run} running={Boolean(running)} onSend={sendChat} onStop={stop} />
+          <ChatPanel
+            run={run}
+            running={Boolean(running)}
+            onSend={sendChat}
+            onSendExisting={sendExisting}
+            onStop={stop}
+          />
         ) : (
           <>
             <main className="ds-main">

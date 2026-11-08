@@ -31,8 +31,9 @@ pnpm build && pnpm preview
 顶栏可以在 **Studio** 和 **Chat** 之间切换，两者共用同一份 `messages`：
 
 - **Studio**：精细构造——参数、上下文逐条编辑、原始请求体、流式帧观测
-- **Chat**：像普通聊天 AI——输入框发消息，自动把整段上下文拼进 `messages`，回复自动追加为 assistant
-- 切换时内容一致：Chat 里聊出来的上下文，切到 Studio 能看到完整 messages、参数和请求体；反过来也一样
+- **Chat**：像普通聊天 AI——输入框发消息，自动把整段上下文拼进 `messages`
+- **发送完成即入上下文**：每次请求成功后，回复会自动写入 `messages`（重发时替换上一次自动追加的那条，不会越积越多）。所以 Studio 里跑完一次，切到 Chat 就能看到完整的一问一答；Chat 里的对话在 Studio 中就是普通 messages，可继续编辑
+- **Chat 可直接续发**：如果 Studio 里已经写好一条还没发送的 user 消息，切到 Chat 底部会出现「继续发送」，点一下直接请求，不用重新输入一遍
 
 Chat 模式细节：Enter 发送、Shift + Enter 换行；输入框左侧可以加图片或直接粘贴（和 Studio 一样进入 `image_url` 内容块）；system 提示词折叠在顶部，不占对话气泡；`reasoning_content` 收在回复内；「清空对话」只清 messages，不动端点和参数。
 

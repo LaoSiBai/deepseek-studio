@@ -82,10 +82,10 @@ const frameCount = await page.locator('.ds-frame').count();
 check(frameCount > 5, `流式帧已记录 (${frameCount})`);
 await page.locator('.ds-response__tabs .ds-tab').filter({ hasText: '内容' }).click();
 
-// E. 追加到上下文
-await page.locator('.ds-response__head .ds-textbtn.is-accent').click();
-await page.waitForTimeout(250);
-check((await page.locator('.ds-msg').count()) === 2, '追加后消息数为 2');
+// E. 发送后自动入上下文（与 Chat 共用 messages）
+await page.locator('.ds-worktabs .ds-tab').filter({ hasText: '上下文' }).click();
+await page.waitForTimeout(300);
+check((await page.locator('.ds-msg').count()) === 2, '发送后自动追加 assistant（消息数为 2）');
 check((await page.locator('.ds-msg.role-assistant .ds-textarea').count()) >= 1, 'assistant 消息可编辑');
 
 // F. 改写 assistant 内容

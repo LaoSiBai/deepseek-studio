@@ -89,6 +89,7 @@ type Action =
   | { type: 'message/add'; role: Role; afterId?: string }
   | { type: 'message/update'; id: string; patch: Partial<Message> }
   | { type: 'message/append'; message: Message }
+  | { type: 'run/commit'; message: Message }
   | { type: 'message/remove'; id: string }
   | { type: 'message/move'; id: string; direction: -1 | 1 }
   | { type: 'message/reorder'; fromId: string; toId: string }
@@ -202,6 +203,19 @@ function reducer(state: StudioState, action: Action): StudioState {
         ...state.workspace,
         messages: [...state.workspace.messages, action.message],
       });
+
+    // 一次运行结束：替换上一次自动追加的 assistant，避免重发时越积越多
+    case 'run/commit': {
+      const messages = [...state.workspace.messages];
+      const last = messages[messages.length - 1];
+      if (last && last.role === 'assistant' && last.id.startsWith('auto-')) {
+        messages.pop();
+      }
+      return withWorkspace(state, {
+        ...state.workspace,
+        messages: [...messages, action.message],
+      });
+    }
 
     case 'message/remove':
       return withWorkspace(state, {

@@ -2344,6 +2344,40 @@
   gap: 6px;
 }
 
+.ds-chat__resume {
+  max-width: 780px;
+  margin: 0 auto 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 1px solid rgba(77, 107, 254, 0.28);
+  border-radius: 8px;
+  background: rgba(77, 107, 254, 0.08);
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.ds-chat__resume span {
+  flex: 1;
+}
+
+.ds-chat__resume button {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(77, 107, 254, 0.4);
+  background: rgba(77, 107, 254, 0.16);
+  color: var(--accent-hi);
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.ds-chat__resume button:hover {
+  background: rgba(77, 107, 254, 0.24);
+}
+
 .ds-chat__thumb {
   position: relative;
   width: 58px;
