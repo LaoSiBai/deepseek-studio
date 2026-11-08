@@ -1,14 +1,16 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ClipboardEvent as ReactClipboardEvent } from 'react';
 import { useStudio } from '../state/studio';
-import type { Message, RunState } from '../types';
+import type { ImageAttachment, Message, RunState } from '../types';
 import { useIsMobile } from '../lib/useMediaQuery';
+import { readImageFile } from '../lib/images';
 import { MarkdownView } from './Markdown';
 import { Icon } from './Icons';
+import { toast } from './ui';
 
 interface Props {
   run: RunState | null;
   running: boolean;
-  onSend: (text: string) => Promise<void>;
+  onSend: (text: string, images: ImageAttachment[]) => Promise<void>;
   onStop: () => void;
 }
 
@@ -16,7 +18,9 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
   const { state, dispatch } = useStudio();
   const isMobile = useIsMobile();
   const [input, setInput] = useState('');
+  const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   const messages = state.workspace.messages;
   const systemMessages = messages.filter(
@@ -34,17 +38,42 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
     node.scrollTop = node.scrollHeight;
   }, [conversation.length, run?.content, run?.reasoning, running]);
 
+  const addImages = async (files: File[]) => {
+    const next = [...pendingImages];
+    const before = next.length;
+    for (const file of files) {
+      try {
+        next.push(await readImageFile(file));
+      } catch (error) {
+        toast(error instanceof Error ? error.message : String(error), 'error');
+      }
+    }
+    if (next.length > before) setPendingImages(next);
+  };
+
+  const handlePaste = (event: ReactClipboardEvent<HTMLTextAreaElement>) => {
+    const files = Array.from(event.clipboardData.files).filter((file) =>
+      file.type.startsWith('image/'),
+    );
+    if (files.length === 0) return;
+    event.preventDefault();
+    void addImages(files);
+  };
+
   const submit = async () => {
     const text = input.trim();
-    if (!text || running) return;
+    if ((!text && pendingImages.length === 0) || running) return;
+    const images = pendingImages;
     setInput('');
-    await onSend(text);
+    setPendingImages([]);
+    await onSend(text, images);
   };
 
   const clear = () => {
     if (running) return;
     dispatch({ type: 'messages/set', messages: [] });
     setInput('');
+    setPendingImages([]);
   };
 
   return (
@@ -120,6 +149,24 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
       </div>
 
       <div className="ds-chat__composer">
+        {pendingImages.length > 0 && (
+          <div className="ds-chat__pending">
+            {pendingImages.map((image) => (
+              <div className="ds-chat__thumb" key={image.id}>
+                <img src={image.url} alt={image.name} title={image.name} />
+                <button
+                  type="button"
+                  title="移除图片"
+                  onClick={() =>
+                    setPendingImages((prev) => prev.filter((item) => item.id !== image.id))
+                  }
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="ds-chat__box">
           <textarea
             value={input}
@@ -131,11 +178,33 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
             }
             spellCheck={false}
             onChange={(event) => setInput(event.target.value)}
+            onPaste={handlePaste}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
                 event.preventDefault();
                 void submit();
               }
+            }}
+          />
+          <button
+            type="button"
+            className="ds-chat__attach"
+            onClick={() => fileRef.current?.click()}
+            title="添加图片（也可直接粘贴）"
+            disabled={running}
+          >
+            <Icon name="image" size={15} />
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp"
+            multiple
+            hidden
+            onChange={(event) => {
+              const files = Array.from(event.target.files ?? []);
+              if (files.length > 0) void addImages(files);
+              event.target.value = '';
             }}
           />
           {running ? (
@@ -147,7 +216,7 @@ export function ChatPanel({ run, running, onSend, onStop }: Props) {
               type="button"
               className="ds-chat__send"
               onClick={() => void submit()}
-              disabled={!input.trim()}
+              disabled={!input.trim() && pendingImages.length === 0}
               title="发送（Enter）"
             >
               <Icon name="play" size={13} />

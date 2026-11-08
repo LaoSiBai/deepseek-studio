@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StudioProvider, useStudio } from './state/studio';
-import type { Endpoint, Message, RunRecord, RunState, Workspace } from './types';
+import type { Endpoint, ImageAttachment, Message, RunRecord, RunState, Workspace } from './types';
 import { buildRequestBody } from './lib/params';
 import { ApiError, runChatRequest, type RunEvent, type RunOutcome } from './lib/api';
 import { clone, joinUrl, truncate, uid } from './lib/utils';
@@ -336,16 +336,21 @@ function Studio() {
 
   /** Chat 模式：先落一条 user 消息，再把整段上下文发出去，成功后追加 assistant */
   const sendChat = useCallback(
-    async (text: string) => {
+    async (text: string, images: ImageAttachment[] = []) => {
       const trimmed = text.trim();
-      if (!trimmed) return;
+      if (!trimmed && images.length === 0) return;
       const messages = state.workspace.messages;
       const last = messages[messages.length - 1];
       const base =
         last && last.role === 'user' && !last.content.trim() && !last.images?.length
           ? messages.slice(0, -1)
           : messages;
-      const userMessage: Message = { id: uid('m'), role: 'user', content: trimmed };
+      const userMessage: Message = {
+        id: uid('m'),
+        role: 'user',
+        content: trimmed,
+        images: images.length > 0 ? images : undefined,
+      };
       const nextMessages = [...base, userMessage];
       dispatch({ type: 'messages/set', messages: nextMessages });
       const outcome = await send({ ...state.workspace, messages: nextMessages });

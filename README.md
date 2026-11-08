@@ -34,7 +34,7 @@ pnpm build && pnpm preview
 - **Chat**：像普通聊天 AI——输入框发消息，自动把整段上下文拼进 `messages`，回复自动追加为 assistant
 - 切换时内容一致：Chat 里聊出来的上下文，切到 Studio 能看到完整 messages、参数和请求体；反过来也一样
 
-Chat 模式细节：Enter 发送、Shift + Enter 换行；system 提示词折叠在顶部，不占对话气泡；`reasoning_content` 收在回复内；「清空对话」只清 messages，不动端点和参数。
+Chat 模式细节：Enter 发送、Shift + Enter 换行；输入框左侧可以加图片或直接粘贴（和 Studio 一样进入 `image_url` 内容块）；system 提示词折叠在顶部，不占对话气泡；`reasoning_content` 收在回复内；「清空对话」只清 messages，不动端点和参数。
 
 ![Chat 模式](docs/ui-chat.png)
 
