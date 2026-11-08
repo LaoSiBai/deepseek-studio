@@ -1,0 +1,292 @@
+/*
+ * 移动端适配。
+ * 这个文件必须最后导入：panels.css / styles.css 里同名组件的 display/宽度
+ * 会覆盖普通媒体查询，这里用 `.ds-app` 前缀提升特异性并依靠导入顺序兜底。
+ */
+
+.ds-mobile-backdrop {
+  display: none;
+}
+
+.ds-pane-toggle {
+  display: none;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  border: 1px solid var(--line);
+  background: var(--input);
+  color: var(--text-dim);
+}
+
+.ds-pane-toggle:hover {
+  color: var(--text);
+  border-color: var(--line-strong);
+}
+
+@media (max-width: 900px) {
+  .ds-app .ds-body,
+  .ds-app.sidebar-collapsed .ds-body,
+  .ds-app.mode-chat .ds-body,
+  .ds-app.mode-chat.sidebar-collapsed .ds-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* 侧栏改为抽屉 */
+  .ds-app .ds-sidebar,
+  .ds-app .ds-sidebar.is-collapsed {
+    position: fixed;
+    top: 52px;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    width: min(84vw, 300px);
+    max-width: 320px;
+    z-index: 60;
+    transform: translateX(-104%);
+    transition: transform 0.22s ease;
+    box-shadow: 24px 0 60px rgba(0, 0, 0, 0.5);
+    border-right: 1px solid var(--line);
+  }
+
+  .ds-app.drawer-open .ds-sidebar {
+    transform: translateX(0);
+  }
+
+  .ds-mobile-backdrop {
+    position: fixed;
+    inset: 52px 0 0 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.58);
+    backdrop-filter: blur(2px);
+  }
+
+  .ds-app.drawer-open .ds-mobile-backdrop {
+    display: block;
+  }
+
+  /* 编辑 / 响应 单窗切换 */
+  .ds-app .ds-response {
+    display: none;
+    border-left: 0;
+  }
+
+  .ds-app.show-response .ds-response {
+    display: flex;
+  }
+
+  .ds-app.show-response .ds-main {
+    display: none;
+  }
+
+  .ds-app .ds-main {
+    border-right: 0;
+  }
+
+  /* 顶栏 */
+  .ds-app .ds-topbar {
+    gap: 8px;
+    padding: 0 10px;
+  }
+
+  .ds-app .ds-brand__sub {
+    display: none;
+  }
+
+  .ds-app .ds-brand__name {
+    font-size: 12px;
+  }
+
+  .ds-app .ds-topbar__center {
+    padding-left: 0;
+    border-left: 0;
+    gap: 4px;
+  }
+
+  .ds-app .ds-topbar__workspace {
+    display: none;
+  }
+
+  .ds-app .ds-topbar__center .ds-textbtn {
+    font-size: 0;
+    gap: 0;
+    padding: 0;
+    width: 26px;
+    justify-content: center;
+  }
+
+  .ds-app .ds-topbar__right {
+    gap: 8px;
+  }
+
+  .ds-app .ds-topbar__hint,
+  .ds-app .ds-chat__hint {
+    display: none;
+  }
+
+  .ds-app .ds-topbar .ds-brand__collapse {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ds-app .ds-pane-toggle {
+    display: inline-flex;
+    width: 32px;
+    height: 32px;
+  }
+
+  .ds-app .ds-topbar__center .ds-textbtn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ds-app .ds-send {
+    padding: 0 11px;
+    font-size: 12px;
+  }
+
+  /* 连接条：每行一个字段 */
+  .ds-app .ds-endpoint {
+    padding: 10px 12px;
+    gap: 7px;
+  }
+
+  .ds-app .ds-endpoint__row {
+    flex-wrap: wrap;
+  }
+
+  .ds-app .ds-provider {
+    width: 100%;
+  }
+
+  .ds-app .ds-inline,
+  .ds-app .ds-inline--path,
+  .ds-app .ds-inline--model {
+    flex: 1 1 100%;
+  }
+
+  .ds-app .ds-endpoint__row .ds-switch,
+  .ds-app .ds-endpoint__row .ds-chip {
+    flex: 0 0 auto;
+  }
+
+  /* 主区 */
+  .ds-app .ds-worktabs {
+    padding: 0 8px;
+  }
+
+  .ds-app .ds-tab {
+    height: 40px;
+    padding: 0 8px;
+  }
+
+  .ds-app .ds-work {
+    padding: 12px 12px 18px;
+  }
+
+  .ds-app .ds-statusbar {
+    display: none;
+  }
+
+  /* 响应 */
+  .ds-app .ds-metrics {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ds-app .ds-response__head {
+    padding: 0 10px;
+  }
+
+  .ds-app .ds-response__body {
+    padding: 12px 12px 16px;
+  }
+
+  /* Chat */
+  .ds-app .ds-chat__scroll {
+    padding: 16px 12px 8px;
+  }
+
+  .ds-app .ds-chat__composer {
+    padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .ds-app .ds-chat-bubble {
+    max-width: 92%;
+  }
+
+  .ds-app .ds-chat__box textarea {
+    font-size: 16px;
+  }
+
+  /* 触屏没有 hover：常显操作 */
+  .ds-app .ds-msg__head .ds-iconbtn,
+  .ds-app .ds-image__remove {
+    opacity: 1;
+  }
+
+  .ds-app .ds-msg__chars {
+    display: none;
+  }
+
+  .ds-app .ds-msg__head .ds-iconbtn:disabled {
+    opacity: 0.28;
+  }
+
+  .ds-app .ds-preset__actions {
+    position: static;
+    display: flex;
+    margin-top: 4px;
+    padding: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  .ds-app .ds-preset__name {
+    padding-right: 0;
+  }
+
+  .ds-app .ds-history__actions {
+    display: block;
+  }
+
+  .ds-app .ds-viewbar .ds-segmented {
+    transform: scale(0.94);
+    transform-origin: top right;
+  }
+
+  .ds-app .ds-messages__meta .ds-muted {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .ds-app .ds-brand__text {
+    display: none;
+  }
+
+  .ds-app .ds-send {
+    font-size: 0;
+    gap: 0;
+    padding: 0 10px;
+    width: 34px;
+    justify-content: center;
+  }
+
+  .ds-app .ds-modeswitch button {
+    padding: 0 8px;
+  }
+
+  .ds-app .ds-chat__meta {
+    display: none;
+  }
+
+  .ds-app .ds-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ds-app .ds-metric:nth-child(2n) {
+    border-right: 0;
+  }
+}
