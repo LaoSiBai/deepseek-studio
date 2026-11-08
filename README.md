@@ -182,14 +182,13 @@ HTTPS_PROXY=http://127.0.0.1:7890
 
 ## 部署
 
-线上地址：**https://laosibai.github.io/deepseek-studio/**（GitHub Pages，推送 `main` 自动构建部署）
+线上地址：**https://studio.laosibai.com/**（自定义域，GitHub Pages 托管）
+
+- 推送 `main` 自动构建部署（`.github/workflows/deploy.yml`），GitHub Pages 地址是 https://laosibai.github.io/deepseek-studio/
+- Cloudflare DNS 中 `studio` 是 CNAME → `laosibai.github.io`（DNS only）
+- 仓库 `public/CNAME` 固定自定义域，GitHub Pages 已开启 HTTPS
 
 静态部署没有本地代理，前端会探测 `/api/env`：存在则走代理，不存在则自动切换为**浏览器直连**。DeepSeek 官方接口允许跨域，所以在「连接设置」里填自己的 key 就能直接用。
-
-自定义域 `studio.laosibai.com` 还需要两步：
-
-1. Cloudflare DNS 添加 `CNAME studio → laosibai.github.io`
-2. GitHub 仓库 Settings → Pages → Custom domain 填 `studio.laosibai.com`
 
 ## 项目结构
 
