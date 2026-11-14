@@ -210,6 +210,7 @@ DeepSeek 官方端点（`api.deepseek.com`）在三个协议里都支持：
 - **服务端工具**：`deepseek_web_search`、`deepseek_read_url`（参数面板「工具调用 → 服务端工具」，每行一个）
 - **内容安全**：`safety_level` → `safety_check: { level }`
 - **会话标题**：`title_enabled` → `title: { enabled: true }`
+- **文件输入**：连接设置里的「文件（Files API）」上传后拿 `file_id`，填进 user 消息的「附加字段 → 文件 file_id」（每行一个）；三个协议会自动转成 `file` / `document` block，Anthropic 需要的 `anthropic-beta` 头也已自动带上
 - **上下文缓存**：usage 里的 `cached_tokens` 会显示为「缓存命中」指标
 
 这些字段只在 `api.deepseek.com` 端点注入，中转/自定义端点不会带。服务端工具与 `thinking` 可以组合：关闭 thinking 是普通联网搜索，开启后是深度思考搜索。

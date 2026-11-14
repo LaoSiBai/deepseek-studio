@@ -1,11 +1,12 @@
-import { useState } from 'react';
+import { useRef, useState, type ChangeEvent } from 'react';
 import { useStudio } from '../state/studio';
-import type { Endpoint, ProtocolId } from '../types';
+import type { Endpoint, FileRef, ProtocolId } from '../types';
 import { joinUrl } from '../lib/utils';
 import { useEnv } from '../lib/useEnv';
 import { PROTOCOLS, getProtocol } from '../lib/protocols';
+import { listFiles, uploadFile, type RemoteFile } from '../lib/files';
 import { Icon } from './Icons';
-import { Button, IconButton, Select, TextInput } from './ui';
+import { Button, CopyButton, IconButton, Select, TextInput, toast } from './ui';
 
 export interface ProviderTemplate {
   id: string;
@@ -124,6 +125,42 @@ export function EndpointPanel() {
   const endpoint = state.workspace.endpoint;
   const env = useEnv();
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [files, setFiles] = useState<RemoteFile[]>([]);
+  const [filePurpose, setFilePurpose] = useState<FileRef['purpose']>('text_recognition');
+  const [fileBusy, setFileBusy] = useState(false);
+  const [fileError, setFileError] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const refreshFiles = async () => {
+    setFileBusy(true);
+    setFileError('');
+    try {
+      setFiles(await listFiles(endpoint));
+    } catch (error) {
+      setFileError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setFileBusy(false);
+    }
+  };
+
+  const handleUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+    setFileBusy(true);
+    setFileError('');
+    try {
+      await uploadFile(endpoint, file, filePurpose);
+      toast(`已上传 ${file.name}`, 'success');
+      setFiles(await listFiles(endpoint));
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setFileError(message);
+      toast(message.split('\n')[0], 'error');
+    } finally {
+      setFileBusy(false);
+    }
+  };
 
   const provider = detectProvider(endpoint.baseUrl, endpoint.path);
   const providerOptions = PROVIDERS.map((item) => ({ value: item.id, label: item.name }));
@@ -290,6 +327,60 @@ export function EndpointPanel() {
                 <Button variant="ghost" onClick={() => patch({ apiKey: '' })}>
                   清除
                 </Button>
+              )}
+            </div>
+          </div>
+
+          <div className="ds-advanced__block">
+            <div className="ds-advanced__title">
+              文件（Files API）
+              <span className="ds-muted">上传后把 file_id 引用进 user 消息；需要本地 key</span>
+            </div>
+            <div className="ds-files">
+              <div className="ds-files__row">
+                <Select
+                  value={filePurpose}
+                  options={[
+                    { value: 'text_recognition', label: 'text_recognition（只要文字）' },
+                    { value: 'rich_layout_recognition', label: 'rich_layout_recognition（含图）' },
+                    { value: 'user_data', label: 'user_data（图片/文本/表格）' },
+                  ]}
+                  onChange={(value) => setFilePurpose(value as FileRef['purpose'])}
+                />
+                <Button
+                  variant="ghost"
+                  icon="plus"
+                  disabled={fileBusy || !endpoint.apiKey.trim()}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {fileBusy ? '处理中…' : '上传'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  disabled={fileBusy || !endpoint.apiKey.trim()}
+                  onClick={() => void refreshFiles()}
+                >
+                  刷新列表
+                </Button>
+                <input ref={fileInputRef} type="file" hidden onChange={handleUpload} />
+              </div>
+              {fileError && <div className="ds-inlinewarn">{fileError}</div>}
+              {files.length > 0 ? (
+                <div className="ds-files__list">
+                  {files.map((file) => (
+                    <div className="ds-files__item" key={file.id}>
+                      <span className="ds-files__name" title={file.filename ?? file.id}>
+                        {file.filename ?? file.id}
+                      </span>
+                      <code className="ds-files__id">{file.id}</code>
+                      <CopyButton text={file.id} label="复制 file_id" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="ds-muted">
+                  填好 key 后点「刷新列表」，或直接上传；上传的文件会出现在这里。
+                </div>
               )}
             </div>
           </div>

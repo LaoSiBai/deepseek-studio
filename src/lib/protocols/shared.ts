@@ -1,4 +1,17 @@
-import type { ParamValues, ToolCall, Usage } from '../../types';
+import type { FileRef, ParamValues, ToolCall, Usage } from '../../types';
+
+/** Chat Completions / Responses 的文件引用块 */
+export function fileBlocksForChat(files: FileRef[]): Record<string, unknown>[] {
+  return files.map((file) => ({ type: 'file', file_id: file.fileId }));
+}
+
+/** Anthropic Messages 的文档块 */
+export function fileBlocksForAnthropic(files: FileRef[]): Record<string, unknown>[] {
+  return files.map((file) => ({
+    type: 'document',
+    source: { type: 'file', file_id: file.fileId },
+  }));
+}
 
 const SERVER_TOOLS = new Set(['deepseek_web_search', 'deepseek_read_url']);
 

@@ -2,7 +2,7 @@ import type { ToolCall, Usage, Workspace } from '../../types';
 import { isDeepSeekEndpoint } from '../deepseek';
 import { PARAM_DEFS, messageToWire } from '../params';
 import { parseJson, setPath } from '../utils';
-import { applyDeepSeekExtensions, isRecord, mergeToolCallDeltas, toText } from './shared';
+import { applyDeepSeekExtensions, fileBlocksForChat, isRecord, mergeToolCallDeltas, toText } from './shared';
 import type {
   BuildOutput,
   ParsedChunk,
@@ -22,7 +22,19 @@ export function buildOpenAICompatibleBody(workspace: Workspace): BuildOutput {
 
   const body: Record<string, unknown> = {
     model,
-    messages: messages.map(messageToWire),
+    messages: messages.map((message) => {
+      const wire = messageToWire(message);
+      if (message.role === 'user' && message.files?.length) {
+        const parts = Array.isArray(wire.content)
+          ? [...wire.content]
+          : wire.content
+            ? [{ type: 'text', text: String(wire.content) }]
+            : [];
+        parts.push(...fileBlocksForChat(message.files));
+        wire.content = parts;
+      }
+      return wire;
+    }),
     stream: endpoint.stream,
   };
 

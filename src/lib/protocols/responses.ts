@@ -1,6 +1,6 @@
 import type { ToolCall, Usage, Workspace } from '../../types';
 import { isDeepSeekEndpoint } from '../deepseek';
-import { applyDeepSeekExtensions, isRecord, mapResponsesUsage, safeJsonParse } from './shared';
+import { applyDeepSeekExtensions, fileBlocksForChat, isRecord, mapResponsesUsage, safeJsonParse } from './shared';
 import type {
   BuildOutput,
   ParsedChunk,
@@ -70,12 +70,14 @@ function responsesBody(workspace: Workspace): BuildOutput {
       continue;
     }
     const images = message.role === 'user' ? (message.images ?? []).filter((i) => i.url) : [];
-    if (images.length > 0) {
+    const files = message.role === 'user' ? (message.files ?? []) : [];
+    if (images.length > 0 || files.length > 0) {
       const parts: Record<string, unknown>[] = [];
       if (message.content) parts.push({ type: 'input_text', text: message.content });
       for (const image of images) {
         parts.push({ type: 'input_image', image_url: image.url });
       }
+      parts.push(...fileBlocksForChat(files));
       input.push({ role: 'user', content: parts });
     } else {
       input.push({ role: message.role, content: message.content });

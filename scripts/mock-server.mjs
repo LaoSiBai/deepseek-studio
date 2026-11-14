@@ -208,6 +208,40 @@ const server = http.createServer((req, res) => {
   }
 
   const target = req.url ?? '';
+  const pathOnly = target.split('?')[0];
+
+  // Files API：列表与上传（不解析 multipart，返回固定 file 对象）
+  if (req.method === 'GET' && /\/files\/?$/.test(pathOnly)) {
+    sendJson(res, 200, {
+      object: 'list',
+      data: [
+        {
+          id: 'file-api-mock-1',
+          object: 'file',
+          bytes: 1024,
+          created_at: 1700000000,
+          filename: 'mock-report.pdf',
+          purpose: 'text_recognition',
+        },
+      ],
+      first_id: 'file-api-mock-1',
+      last_id: 'file-api-mock-1',
+      has_more: false,
+    });
+    return;
+  }
+  if (req.method === 'POST' && /\/files\/?$/.test(pathOnly)) {
+    sendJson(res, 200, {
+      id: 'file-api-mock-1',
+      object: 'file',
+      bytes: 2048,
+      created_at: 1700000000,
+      filename: 'uploaded.pdf',
+      purpose: 'text_recognition',
+    });
+    return;
+  }
+
   const isMinimax = target.includes('/v1/text/chatcompletion_v2');
   const isResponses = /\/responses\/?$/.test(target);
   const isAnthropic = target.includes('/anthropic') && target.includes('/v1/messages');

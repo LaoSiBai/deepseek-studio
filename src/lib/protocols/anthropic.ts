@@ -1,6 +1,6 @@
 import type { ToolCall, Workspace } from '../../types';
 import { isDeepSeekEndpoint } from '../deepseek';
-import { applyDeepSeekExtensions, isRecord, mapAnthropicUsage, safeJsonParse } from './shared';
+import { applyDeepSeekExtensions, fileBlocksForAnthropic, isRecord, mapAnthropicUsage, safeJsonParse } from './shared';
 import type {
   BuildOutput,
   ParsedChunk,
@@ -108,6 +108,7 @@ function anthropicBody(workspace: Workspace): BuildOutput {
     for (const image of message.images ?? []) {
       if (image.url) blocks.push(imageBlock(image.url));
     }
+    blocks.push(...fileBlocksForAnthropic(message.files ?? []));
     pushBlocks('user', blocks);
   }
 

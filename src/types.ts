@@ -26,7 +26,7 @@ export interface FileRef {
   id: string;
   fileId: string;
   name: string;
-  purpose: 'text_recognition' | 'rich_layout_recognition';
+  purpose: 'user_data' | 'text_recognition' | 'rich_layout_recognition';
 }
 
 export interface Message {

@@ -340,7 +340,7 @@ function MessageCard({ message, index, total, dragging, dropTarget, onDragStart,
           </details>
         )}
 
-        {(message.role === 'assistant' || message.role === 'tool' || Boolean(message.name) || Boolean(message.tool_call_id)) && !message.raw && (
+        {(message.role === 'user' || message.role === 'assistant' || message.role === 'tool' || Boolean(message.name) || Boolean(message.tool_call_id)) && !message.raw && (
           <details className="ds-sub" open={message.role === 'tool'}>
             <summary>附加字段</summary>
             {message.role === 'assistant' && (
@@ -357,6 +357,31 @@ function MessageCard({ message, index, total, dragging, dropTarget, onDragStart,
               </label>
             )}
             <div className="ds-sub__grid">
+              {message.role === 'user' && (
+                <label className="ds-sub__field ds-sub__field--wide">
+                  <span>文件 file_id（每行一个，DeepSeek Files API）</span>
+                  <textarea
+                    className="ds-input is-mono"
+                    rows={2}
+                    value={(message.files ?? []).map((file) => file.fileId).join('\n')}
+                    placeholder="file-api-..."
+                    spellCheck={false}
+                    onChange={(event) => {
+                      const files = event.target.value
+                        .split(/\r?\n/)
+                        .map((line) => line.trim())
+                        .filter(Boolean)
+                        .map((fileId, index) => ({
+                          id: `${fileId}-${index}`,
+                          fileId,
+                          name: fileId,
+                          purpose: 'text_recognition' as const,
+                        }));
+                      update({ files: files.length > 0 ? files : undefined });
+                    }}
+                  />
+                </label>
+              )}
               <label className="ds-sub__field">
                 <span>name</span>
                 <TextInput

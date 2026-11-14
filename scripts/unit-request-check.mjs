@@ -109,6 +109,43 @@ const r6 = buildRequestBody({
 });
 check(JSON.parse(r6.body).model === 'x', 'RAW 模式原样发送');
 
+// 7. 文件引用：Chat / Responses / Anthropic
+const fileMessage = {
+  id: 'm1',
+  role: 'user',
+  content: '总结这份文档',
+  files: [{ id: 'f1', fileId: 'file-api-mock-1', name: 'report.pdf', purpose: 'text_recognition' }],
+};
+const r7 = buildRequestBody({ ...base, endpoint: deepseek, messages: [fileMessage] });
+const b7 = JSON.parse(r7.body);
+check(
+  Array.isArray(b7.messages[0].content) &&
+    b7.messages[0].content.some((block) => block.type === 'file' && block.file_id === 'file-api-mock-1'),
+  'Chat 文件引用块',
+);
+const r8 = buildRequestBody({
+  ...base,
+  endpoint: { ...deepseek, protocol: 'deepseek-responses', path: '/responses' },
+  messages: [fileMessage],
+});
+const b8 = JSON.parse(r8.body);
+check(
+  b8.input[0].content.some((block) => block.type === 'file' && block.file_id === 'file-api-mock-1'),
+  'Responses 文件引用块',
+);
+const r9 = buildRequestBody({
+  ...base,
+  endpoint: { ...deepseek, protocol: 'anthropic-messages', baseUrl: 'https://api.deepseek.com/anthropic', path: '/v1/messages' },
+  messages: [fileMessage],
+});
+const b9 = JSON.parse(r9.body);
+check(
+  b9.messages[0].content.some(
+    (block) => block.type === 'document' && block.source?.file_id === 'file-api-mock-1',
+  ),
+  'Anthropic 文档引用块',
+);
+
 const failures = results.filter((item) => item.startsWith('FAIL'));
 console.log(JSON.stringify({ results, failures }, null, 2));
 if (failures.length > 0) process.exitCode = 1;

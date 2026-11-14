@@ -84,6 +84,9 @@ function buildRequestHeaders(endpoint: Endpoint): Record<string, string> {
   };
   const key = endpoint.apiKey.trim();
   if (key) headers.authorization = `Bearer ${key}`;
+  if (endpoint.protocol === 'anthropic-messages' && endpoint.baseUrl.includes('api.deepseek.com')) {
+    headers['anthropic-beta'] = 'files-api-2025-04-14';
+  }
   for (const row of endpoint.headers) {
     if (!row.enabled || !row.name.trim()) continue;
     headers[row.name.trim()] = row.value;
