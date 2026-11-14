@@ -1,5 +1,6 @@
 import type { ToolCall, Workspace } from '../../types';
-import { isRecord, mapAnthropicUsage, safeJsonParse } from './shared';
+import { isDeepSeekEndpoint } from '../deepseek';
+import { applyDeepSeekExtensions, isRecord, mapAnthropicUsage, safeJsonParse } from './shared';
 import type {
   BuildOutput,
   ParsedChunk,
@@ -164,6 +165,10 @@ function anthropicBody(workspace: Workspace): BuildOutput {
   }
   if (params.reasoning_effort) {
     warnings.push('Anthropic Messages 使用 thinking.type，reasoning_effort 已忽略');
+  }
+
+  if (isDeepSeekEndpoint(workspace.endpoint.baseUrl)) {
+    applyDeepSeekExtensions(body, params, warnings);
   }
 
   return { body, errors, warnings };

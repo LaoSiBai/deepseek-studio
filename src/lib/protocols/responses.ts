@@ -1,5 +1,6 @@
 import type { ToolCall, Usage, Workspace } from '../../types';
-import { isRecord, mapResponsesUsage, safeJsonParse } from './shared';
+import { isDeepSeekEndpoint } from '../deepseek';
+import { applyDeepSeekExtensions, isRecord, mapResponsesUsage, safeJsonParse } from './shared';
 import type {
   BuildOutput,
   ParsedChunk,
@@ -146,6 +147,10 @@ function responsesBody(workspace: Workspace): BuildOutput {
     warnings.push('Responses API 不支持 frequency/presence penalty，已忽略');
   }
   if (params.logprobs === 'true') warnings.push('Responses API 不支持 logprobs，已忽略');
+
+  if (isDeepSeekEndpoint(workspace.endpoint.baseUrl)) {
+    applyDeepSeekExtensions(body, params, warnings);
+  }
 
   return { body, errors, warnings };
 }

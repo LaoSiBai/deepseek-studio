@@ -203,6 +203,17 @@ Provider 下拉已经内置：DeepSeek、DeepSeek Responses、DeepSeek Anthropic
 
 MiniMax 国内版接口允许浏览器跨域，线上静态部署可直接用；国际版若被 CORS 拦截，错误面板会提示改用本地 `pnpm dev` 代理。
 
+### DeepSeek 应用能力
+
+DeepSeek 官方端点（`api.deepseek.com`）在三个协议里都支持：
+
+- **服务端工具**：`deepseek_web_search`、`deepseek_read_url`（参数面板「工具调用 → 服务端工具」，每行一个）
+- **内容安全**：`safety_level` → `safety_check: { level }`
+- **会话标题**：`title_enabled` → `title: { enabled: true }`
+- **上下文缓存**：usage 里的 `cached_tokens` 会显示为「缓存命中」指标
+
+这些字段只在 `api.deepseek.com` 端点注入，中转/自定义端点不会带。服务端工具与 `thinking` 可以组合：关闭 thinking 是普通联网搜索，开启后是深度思考搜索。
+
 ## 部署
 
 线上地址：**https://studio.laosibai.com/**（自定义域，GitHub Pages 托管）

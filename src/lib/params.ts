@@ -279,6 +279,22 @@ export const PARAM_DEFS: ParamDef[] = [
     kind: 'json',
     placeholder: '{"trace_id":"..."}',
   },
+  {
+    key: 'server_tools',
+    label: '服务端工具',
+    group: 'tools',
+    kind: 'tags',
+    placeholder: 'deepseek_web_search\ndeepseek_read_url',
+    hint: 'DeepSeek 官方端点：每行一个（deepseek_web_search / deepseek_read_url）',
+  },
+  select('safety_level', 'safety_check', 'advanced', ['low', 'high'], 'DeepSeek 内容安全等级'),
+  {
+    key: 'title_enabled',
+    label: '会话标题',
+    group: 'advanced',
+    kind: 'boolean',
+    hint: 'DeepSeek 让服务端生成 conversation title',
+  },
 ];
 
 export const PARAM_BY_KEY: Map<string, ParamDef> = new Map(PARAM_DEFS.map((def) => [def.key, def]));

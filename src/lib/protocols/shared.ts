@@ -1,4 +1,32 @@
-import type { ToolCall, Usage } from '../../types';
+import type { ParamValues, ToolCall, Usage } from '../../types';
+
+const SERVER_TOOLS = new Set(['deepseek_web_search', 'deepseek_read_url']);
+
+/** DeepSeek 应用层扩展：服务端工具、内容安全、会话标题（三个协议格式一致） */
+export function applyDeepSeekExtensions(
+  body: Record<string, unknown>,
+  params: ParamValues,
+  warnings: string[],
+): void {
+  if (params.server_tools) {
+    const names = params.server_tools
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const tools = Array.isArray(body.tools) ? (body.tools as unknown[]) : [];
+    for (const name of names) {
+      if (!SERVER_TOOLS.has(name)) {
+        warnings.push(`未知服务端工具 ${name}，已忽略`);
+        continue;
+      }
+      const exists = tools.some((tool) => isRecord(tool) && tool.name === name && tool.type === name);
+      if (!exists) tools.push({ type: name, name });
+    }
+    if (tools.length > 0) body.tools = tools;
+  }
+  if (params.safety_level) body.safety_check = { level: params.safety_level };
+  if (params.title_enabled === 'true') body.title = { enabled: true };
+}
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

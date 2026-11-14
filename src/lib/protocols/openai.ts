@@ -1,7 +1,8 @@
 import type { ToolCall, Usage, Workspace } from '../../types';
+import { isDeepSeekEndpoint } from '../deepseek';
 import { PARAM_DEFS, messageToWire } from '../params';
 import { parseJson, setPath } from '../utils';
-import { isRecord, mergeToolCallDeltas, toText } from './shared';
+import { applyDeepSeekExtensions, isRecord, mergeToolCallDeltas, toText } from './shared';
 import type {
   BuildOutput,
   ParsedChunk,
@@ -96,6 +97,10 @@ export function buildOpenAICompatibleBody(workspace: Workspace): BuildOutput {
         setPath(body, path, raw);
         break;
     }
+  }
+
+  if (isDeepSeekEndpoint(endpoint.baseUrl)) {
+    applyDeepSeekExtensions(body, params, warnings);
   }
 
   return { body, errors, warnings };

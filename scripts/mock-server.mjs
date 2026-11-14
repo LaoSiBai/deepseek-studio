@@ -318,7 +318,12 @@ const server = http.createServer((req, res) => {
             finish_reason: 'stop',
           },
         ],
-        usage: { prompt_tokens: 11, completion_tokens: 9, total_tokens: 20 },
+        usage: {
+          prompt_tokens: 11,
+          completion_tokens: 9,
+          total_tokens: 20,
+          prompt_tokens_details: { cached_tokens: 4 },
+        },
       });
       return;
     }

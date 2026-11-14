@@ -186,6 +186,12 @@ export function ResponsePanel({ run, onAppend, onRetry, onStop }: Props) {
           <span>输入 tokens</span>
           <b>{formatNumber(usage?.prompt_tokens)}</b>
         </div>
+        {usage?.prompt_tokens_details?.cached_tokens ? (
+          <div className="ds-metric">
+            <span>缓存命中</span>
+            <b>{formatNumber(usage.prompt_tokens_details.cached_tokens)}</b>
+          </div>
+        ) : null}
         <div className="ds-metric">
           <span>finish</span>
           <b className={run.finishReason === 'length' ? 'is-warn' : ''}>{run.finishReason ?? '—'}</b>
