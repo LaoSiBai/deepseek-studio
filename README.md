@@ -181,6 +181,28 @@ HTTPS_PROXY=http://127.0.0.1:7890
 
 终端里已有的 `HTTPS_PROXY` / `HTTP_PROXY` 环境变量同样生效；`localhost` 和 `127.0.0.1` 会自动绕过代理。修改 `.env` 后 Vite 会自动重启，刷新页面即可看到右上角的 key 状态变化。
 
+## 多协议与 MiniMax
+
+连接设置里可以切换 **协议**，同一份 `messages` 会按协议生成请求、解析响应：
+
+| 协议 | 默认端点 | 适用 |
+| --- | --- | --- |
+| OpenAI Chat Compatible | `https://api.deepseek.com/chat/completions` | DeepSeek / OpenAI / 中转 / MiniMax 兼容端点 |
+| MiniMax Chat (native) | `https://api.minimaxi.com/v1/text/chatcompletion_v2` | MiniMax 原生 v2 |
+| OpenAI Responses | `https://api.deepseek.com/responses` | DeepSeek Responses API |
+| Anthropic Messages | `https://api.deepseek.com/anthropic/v1/messages` | DeepSeek Anthropic API |
+
+Provider 下拉已经内置：DeepSeek、DeepSeek Responses、DeepSeek Anthropic、DeepSeek Beta/FIM、MiniMax（国内 / 国际 / OpenAI 兼容）、OpenAI、自定义。
+
+差异处理：
+
+- **MiniMax**：`max_tokens` 自动改写为 `max_completion_tokens`；`tool_choice` 只保留 `auto` / `none`；`temperature` 范围 (0,1]；HTTP 200 且 `base_resp.status_code != 0` 会被识别为错误（错误面板显示 `status_code`）；流式末帧的完整 `message` 不会重复追加正文
+- **Responses**：`system` 合并为 `instructions`，`messages` 转成 `input` items，`response_format` 转成 `text.format`，`max_output_tokens`；SSE 按 `response.*` 事件解析
+- **Anthropic**：`system` 提到顶层，`max_tokens` 必填（默认 4096），`tools` 转成 `input_schema`，图片转 base64/url；SSE 按 `message_*` / `content_block_*` 事件解析
+- 旧工作区 / 预设 / 历史没有 `protocol` 字段，加载时自动按 `openai-chat` 处理
+
+MiniMax 国内版接口允许浏览器跨域，线上静态部署可直接用；国际版若被 CORS 拦截，错误面板会提示改用本地 `pnpm dev` 代理。
+
 ## 部署
 
 线上地址：**https://studio.laosibai.com/**（自定义域，GitHub Pages 托管）
@@ -195,14 +217,16 @@ HTTPS_PROXY=http://127.0.0.1:7890
 
 ```
 server/proxy.ts          # Vite 中间件：/api/env、/api/proxy（SSE 透传）
-src/lib/params.ts        # 参数 schema、请求体构建、RAW 反向解析
+src/lib/protocols/       # 协议适配器：openai-chat / minimax-chat / responses / anthropic
+src/lib/params.ts        # 参数 schema、消息 wire 格式、RAW 反向解析
+src/lib/request.ts       # 按协议构建请求体 + 通用校验/提醒
 src/lib/deepseek.ts      # 识别官方端点 + DeepSeek 能力约束
-src/lib/errors.ts        # 错误响应结构化（message / type / request_id）
-src/lib/api.ts           # 发送与 SSE 解析（chat delta / FIM text / usage）
+src/lib/errors.ts        # 错误响应结构化（error / base_resp / Anthropic）
+src/lib/api.ts           # 发送、SSE 事件解析、协议分发
 src/components/Markdown.tsx  # 轻量 Markdown 解析与渲染（无第三方依赖）
 src/state/studio.tsx     # 工作区 reducer + localStorage 持久化
 src/components/          # 三栏 UI
-scripts/mock-server.mjs  # 本地 mock SSE 端点（chat / FIM / 400 错误）
+scripts/mock-server.mjs  # 本地 mock：chat / FIM / MiniMax / Responses / Anthropic
 scripts/ui-smoke*.mjs    # Playwright 冒烟测试（需本机 Chrome）
 ```
 

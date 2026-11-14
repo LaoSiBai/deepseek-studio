@@ -20,6 +20,7 @@ const STORAGE = {
 };
 
 export const DEFAULT_ENDPOINT: Endpoint = {
+  protocol: 'openai-chat',
   baseUrl: 'https://api.deepseek.com',
   path: '/chat/completions',
   method: 'POST',
@@ -404,10 +405,17 @@ function loadInitialState(): StudioState {
     };
   }
   workspace.endpoint.apiKey = savedKey;
+  workspace.endpoint = { ...DEFAULT_ENDPOINT, ...workspace.endpoint, apiKey: savedKey };
   if (!workspace.endpoint.baseUrl) workspace.endpoint.baseUrl = base.endpoint.baseUrl;
 
-  const presets = readJson<Preset[]>(STORAGE.presets) ?? [];
-  const history = (readJson<RunRecord[]>(STORAGE.history) ?? []).filter(Boolean);
+  // 旧数据没有 protocol，统一补默认值
+  const presets = (readJson<Preset[]>(STORAGE.presets) ?? []).map((preset) => ({
+    ...preset,
+    endpoint: { ...DEFAULT_ENDPOINT, ...preset.endpoint },
+  }));
+  const history = (readJson<RunRecord[]>(STORAGE.history) ?? [])
+    .filter(Boolean)
+    .map((record) => ({ ...record, endpoint: { ...DEFAULT_ENDPOINT, ...record.endpoint } }));
   const activePresetId = safeGet(STORAGE.active);
 
   return {

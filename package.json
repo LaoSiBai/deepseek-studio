@@ -15,6 +15,7 @@
     "mock": "node scripts/mock-server.mjs",
     "smoke": "node scripts/ui-smoke-2.mjs",
     "smoke:mobile": "node scripts/ui-mobile-check.mjs",
+    "smoke:protocols": "node scripts/ui-protocols-check.mjs",
     "check": "tsc -b"
   },
   "dependencies": {

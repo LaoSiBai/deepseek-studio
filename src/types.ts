@@ -21,6 +21,14 @@ export interface ImageAttachment {
   detail?: 'low' | 'high' | 'original' | 'auto';
 }
 
+/** DeepSeek Files API 上传后的文件引用 */
+export interface FileRef {
+  id: string;
+  fileId: string;
+  name: string;
+  purpose: 'text_recognition' | 'rich_layout_recognition';
+}
+
 export interface Message {
   id: string;
   role: Role;
@@ -34,13 +42,23 @@ export interface Message {
   prefix?: boolean;
   /** 图片输入（仅 user 消息有效）；走 content 数组的 image_url 块 */
   images?: ImageAttachment[];
+  /** 文档引用（Files API 上传后得到的 file_id） */
+  files?: FileRef[];
   /** 以完整 JSON 对象编辑/发送该条消息（支持 content 数组、多模态等） */
   raw?: boolean;
   rawJson?: string;
   collapsed?: boolean;
 }
 
+export type ProtocolId =
+  | 'openai-chat'
+  | 'minimax-chat'
+  | 'deepseek-responses'
+  | 'anthropic-messages';
+
 export interface Endpoint {
+  /** 请求/响应用哪套协议；决定 URL 默认值、请求构建和解析方式 */
+  protocol: ProtocolId;
   baseUrl: string;
   path: string;
   method: 'POST' | 'GET';

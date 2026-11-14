@@ -1,7 +1,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { StudioProvider, useStudio } from './state/studio';
 import type { Endpoint, ImageAttachment, Message, RunRecord, RunState, Workspace } from './types';
-import { buildRequestBody } from './lib/params';
+import { buildRequestBody } from './lib/request';
 import { ApiError, runChatRequest, type RunEvent, type RunOutcome } from './lib/api';
 import { clone, joinUrl, truncate, uid } from './lib/utils';
 import { onRestoreRun } from './lib/runBridge';

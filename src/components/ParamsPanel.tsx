@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useStudio } from '../state/studio';
 import { PARAM_DEFS, PARAM_GROUPS, paramVisible, type ParamDef } from '../lib/params';
+import { getProtocol } from '../lib/protocols';
 import { deepseekIssues, isDeepSeekEndpoint } from '../lib/deepseek';
 import { parseJson } from '../lib/utils';
 import { Icon } from './Icons';
@@ -26,6 +27,15 @@ export function ParamsPanel() {
   const extraInvalid = Boolean(state.workspace.extraBody.trim()) && !parseJson(state.workspace.extraBody).ok;
 
   const endpoint = state.workspace.endpoint;
+  const protocol = getProtocol(endpoint.protocol);
+  const capabilityNotes = [
+    protocol.capabilities.temperature.hint ??
+      `temperature ${protocol.capabilities.temperature.min}–${protocol.capabilities.temperature.max}`,
+    !protocol.capabilities.supportsMaxTokens && 'max_tokens 已弃用，用 max_completion_tokens',
+    protocol.capabilities.toolChoiceValues.length < 4 &&
+      `tool_choice 仅 ${protocol.capabilities.toolChoiceValues.join(' / ')}`,
+    !protocol.capabilities.supportsJsonSchema && '不支持 response_format',
+  ].filter((note): note is string => Boolean(note));
   const issues = deepseekIssues(endpoint, params, state.workspace.messages);
   const genericN =
     !isDeepSeekEndpoint(endpoint.baseUrl) &&
@@ -61,6 +71,11 @@ export function ParamsPanel() {
       </div>
 
       <div className="ds-params__groups">
+        <div className="ds-protocol-hint">
+          <Icon name="alert" size={12} />
+          <span>{protocol.label}</span>
+          <span className="ds-muted">{capabilityNotes.join(' · ')}</span>
+        </div>
         {issues.map((issue, index) => (
           <div
             key={`${issue.level}-${index}`}

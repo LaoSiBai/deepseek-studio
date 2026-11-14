@@ -1,5 +1,7 @@
 import type { Endpoint, StreamFrame, ToolCall, Usage } from '../types';
 import { joinUrl } from './utils';
+import { getProtocol } from './protocols';
+import type { ParsedChunk } from './protocols/types';
 
 export class ApiError extends Error {
   status: number | null;
@@ -75,46 +77,6 @@ export function detectTransport(): Promise<Transport> {
   return transportPromise;
 }
 
-function mergeToolCallDeltas(acc: ToolCall[], deltas: unknown): void {
-  if (!Array.isArray(deltas)) return;
-  for (const raw of deltas) {
-    if (typeof raw !== 'object' || raw === null) continue;
-    const delta = raw as {
-      index?: number;
-      id?: string;
-      type?: string;
-      function?: { name?: string; arguments?: string };
-    };
-    const index = typeof delta.index === 'number' ? delta.index : acc.length;
-    while (acc.length <= index) {
-      acc.push({ id: '', type: 'function', function: { name: '', arguments: '' } });
-    }
-    const target = acc[index];
-    if (delta.id) target.id = delta.id;
-    if (delta.function?.name) target.function.name = delta.function.name;
-    if (delta.function?.arguments) target.function.arguments += delta.function.arguments;
-  }
-}
-
-function toText(value: unknown): string {
-  if (typeof value === 'string') return value;
-  if (value === null || value === undefined) return '';
-  if (Array.isArray(value)) {
-    return value
-      .map((part) => {
-        if (typeof part === 'string') return part;
-        if (typeof part === 'object' && part !== null) {
-          const p = part as { text?: unknown; type?: unknown };
-          if (typeof p.text === 'string') return p.text;
-          return JSON.stringify(part);
-        }
-        return String(part);
-      })
-      .join('');
-  }
-  return JSON.stringify(value);
-}
-
 function buildRequestHeaders(endpoint: Endpoint): Record<string, string> {
   const headers: Record<string, string> = {
     'content-type': 'application/json',
@@ -135,6 +97,7 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
   const headers = buildRequestHeaders(endpoint);
   onEvent({ type: 'request', url, headers, body });
 
+  const adapter = getProtocol(endpoint.protocol);
   const started = performance.now();
   const transport = await detectTransport();
   let response: Response;
@@ -172,7 +135,9 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
     throw new ApiError(response.status, text);
   }
 
-  if (!endpoint.stream) {
+  // 请求的是流式但服务端回的是 JSON（例如 MiniMax 的业务错误），按普通 JSON 解析
+  const contentType = (responseHeaders['content-type'] ?? '').toLowerCase();
+  if (!endpoint.stream || !contentType.includes('text/event-stream')) {
     const text = await response.text();
     onEvent({ type: 'raw', text });
     let json: unknown;
@@ -181,32 +146,23 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
     } catch {
       throw new ApiError(response.status, `响应不是合法 JSON：\n${text.slice(0, 2000)}`);
     }
-    const payload = json as {
-      choices?: {
-        message?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown; tool_calls?: ToolCall[] };
-        /** FIM / completions 接口用 text 返回 */
-        text?: unknown;
-        finish_reason?: string | null;
-      }[];
-      usage?: Usage;
-      error?: { message?: string };
-    };
-    if (payload.error?.message) throw new ApiError(response.status, payload.error.message);
-    const choice = payload.choices?.[0];
-    const content = toText(choice?.message?.content) || toText(choice?.text);
-    const reasoning = toText(choice?.message?.reasoning_content ?? choice?.message?.reasoning);
+    const businessError = adapter.readBusinessError(json);
+    // 抛原始 JSON，错误面板才能解析出 base_resp.status_code 等元信息
+    if (businessError) throw new ApiError(response.status, text);
+    const parsed = adapter.readResponse(json);
     const durationMs = performance.now() - started;
-    if (content) onEvent({ type: 'delta', content });
-    if (reasoning) onEvent({ type: 'delta', reasoning });
-    if (payload.usage) onEvent({ type: 'usage', usage: payload.usage });
-    onEvent({ type: 'finish', finishReason: choice?.finish_reason ?? null });
+    if (parsed?.content) onEvent({ type: 'delta', content: parsed.content });
+    if (parsed?.reasoning) onEvent({ type: 'delta', reasoning: parsed.reasoning });
+    if (parsed?.toolCalls.length) onEvent({ type: 'delta', toolCalls: parsed.toolCalls });
+    if (parsed?.usage) onEvent({ type: 'usage', usage: parsed.usage });
+    onEvent({ type: 'finish', finishReason: parsed?.finishReason ?? null });
     return {
       httpStatus: response.status,
-      content,
-      reasoning,
-      toolCalls: choice?.message?.tool_calls ?? [],
-      usage: payload.usage ?? null,
-      finishReason: choice?.finish_reason ?? null,
+      content: parsed?.content ?? '',
+      reasoning: parsed?.reasoning ?? '',
+      toolCalls: parsed?.toolCalls ?? [],
+      usage: parsed?.usage ?? null,
+      finishReason: parsed?.finishReason ?? null,
       rawResponse: text,
       ttftMs: durationMs,
       durationMs,
@@ -229,6 +185,8 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
   const decoder = new TextDecoder();
   let buffer = '';
   let firstByte = true;
+  let currentEvent: string | undefined;
+  const parser = adapter.createStreamParser();
 
   const emitDeltaIfAny = (content?: string, reasoning?: string) => {
     if (!content && !reasoning) return;
@@ -236,7 +194,49 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
     onEvent({ type: 'delta', content, reasoning });
   };
 
-  const handlePayload = (payload: string, at: number) => {
+  const applyChunk = (chunk: ParsedChunk, at: number, payload: string) => {
+    if (chunk.error) {
+      onEvent({ type: 'frame', kind: 'error', text: chunk.error, at });
+      throw new ApiError(response.status, chunk.error);
+    }
+    let content = chunk.contentDelta ?? '';
+    // 部分协议（MiniMax）末帧才给完整正文：仅在累计为空时兜底，避免重复
+    if (!acc.content && !content && chunk.finalContent) content = chunk.finalContent;
+    const reasoning = chunk.reasoningDelta ?? '';
+
+    if (chunk.usage) {
+      acc.usage = chunk.usage;
+      onEvent({ type: 'usage', usage: chunk.usage });
+    }
+    if (chunk.toolCalls) {
+      acc.toolCalls = chunk.toolCalls;
+      onEvent({ type: 'delta', toolCalls: acc.toolCalls });
+    }
+    if (chunk.finishReason) {
+      acc.finishReason = chunk.finishReason;
+      onEvent({ type: 'finish', finishReason: chunk.finishReason });
+    }
+
+    if (content) acc.content += content;
+    if (reasoning) acc.reasoning += reasoning;
+    emitDeltaIfAny(content, reasoning);
+
+    const summary = [
+      content && `content +${content.length}`,
+      reasoning && `reasoning +${reasoning.length}`,
+      chunk.toolCalls && `tools ${chunk.toolCalls.length}`,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+    onEvent({
+      type: 'frame',
+      kind: content || reasoning ? 'delta' : 'info',
+      text: summary || (payload.length > 400 ? `${payload.slice(0, 400)}…` : payload),
+      at,
+    });
+  };
+
+  const handlePayload = (payload: string, eventName: string | undefined, at: number) => {
     if (!payload) return;
     if (payload.trim() === '[DONE]') {
       onEvent({ type: 'frame', kind: 'done', text: '[DONE]', at });
@@ -249,58 +249,22 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
       onEvent({ type: 'frame', kind: 'raw', text: payload, at });
       return;
     }
-    const chunk = json as {
-      choices?: {
-        delta?: { content?: unknown; reasoning_content?: unknown; reasoning?: unknown; tool_calls?: unknown };
-        message?: {
-          content?: unknown;
-          reasoning_content?: unknown;
-          reasoning?: unknown;
-          tool_calls?: unknown;
-        };
-        /** FIM / completions 流式 chunk：text 直接在 choice 上 */
-        text?: unknown;
-        finish_reason?: string | null;
-      }[];
-      usage?: Usage;
-      error?: { message?: string; type?: string };
-    };
-    if (chunk.error?.message) {
-      onEvent({ type: 'frame', kind: 'error', text: chunk.error.message, at });
-      throw new ApiError(response.status, chunk.error.message);
-    }
-    if (chunk.usage) {
-      acc.usage = chunk.usage;
-      onEvent({ type: 'usage', usage: chunk.usage });
-    }
-    const choice = chunk.choices?.[0];
-    if (!choice) {
-      onEvent({ type: 'frame', kind: 'info', text: payload.length > 600 ? `${payload.slice(0, 600)}…` : payload, at });
+    applyChunk(parser.push(json, eventName), at, payload);
+  };
+
+  const handleLine = (line: string, at: number) => {
+    if (line.startsWith('event:')) {
+      currentEvent = line.slice(6).trim();
       return;
     }
-    const delta = choice.delta ?? choice.message ?? {};
-    const content = toText(delta.content) || toText(choice.text);
-    const reasoning = toText(delta.reasoning_content ?? delta.reasoning);
-    if (content) acc.content += content;
-    if (reasoning) acc.reasoning += reasoning;
-    if (delta.tool_calls) {
-      mergeToolCallDeltas(acc.toolCalls, delta.tool_calls);
-      onEvent({ type: 'delta', toolCalls: acc.toolCalls });
+    if (line.startsWith('data:')) {
+      handlePayload(line.slice(5).trim(), currentEvent, at);
+      currentEvent = undefined;
+      return;
     }
-    if (choice.finish_reason) {
-      acc.finishReason = choice.finish_reason;
-      onEvent({ type: 'finish', finishReason: choice.finish_reason });
+    if (line && !line.startsWith(':')) {
+      onEvent({ type: 'frame', kind: 'raw', text: line, at });
     }
-    emitDeltaIfAny(content, reasoning);
-    const summary = [content && `content +${content.length}`, reasoning && `reasoning +${reasoning.length}`]
-      .filter(Boolean)
-      .join(' · ');
-    onEvent({
-      type: 'frame',
-      kind: content || reasoning ? 'delta' : 'info',
-      text: summary || (payload.length > 400 ? `${payload.slice(0, 400)}…` : payload),
-      at,
-    });
   };
 
   try {
@@ -318,17 +282,12 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
       while (newline >= 0) {
         const line = buffer.slice(0, newline).replace(/\r$/, '');
         buffer = buffer.slice(newline + 1);
-        if (line.startsWith('data:')) {
-          handlePayload(line.slice(5).trim(), performance.now() - started);
-        } else if (line && !line.startsWith(':')) {
-          onEvent({ type: 'frame', kind: 'raw', text: line, at: performance.now() - started });
-        }
+        handleLine(line, performance.now() - started);
         newline = buffer.indexOf('\n');
       }
     }
     if (buffer.trim()) {
-      const line = buffer.replace(/\r$/, '');
-      if (line.startsWith('data:')) handlePayload(line.slice(5).trim(), performance.now() - started);
+      handleLine(buffer.replace(/\r$/, ''), performance.now() - started);
     }
   } finally {
     try {
@@ -337,6 +296,10 @@ export async function runChatRequest(input: RunInput): Promise<RunOutcome> {
       /* 流已被取消或仍占用时忽略 */
     }
   }
+
+  const tail = parser.finish();
+  if (tail.usage) acc.usage = tail.usage;
+  if (tail.finishReason) acc.finishReason = tail.finishReason;
 
   const durationMs = performance.now() - started;
   if (acc.usage) onEvent({ type: 'usage', usage: acc.usage });

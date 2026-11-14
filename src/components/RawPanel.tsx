@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useStudio } from '../state/studio';
-import { importRawBody, type BuildResult } from '../lib/params';
+import { importRawBody } from '../lib/params';
+import { type BuildResult } from '../lib/request';
 import { joinUrl, parseJson } from '../lib/utils';
 import { Button, CopyButton, toast } from './ui';
 import { Icon } from './Icons';

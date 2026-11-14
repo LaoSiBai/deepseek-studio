@@ -797,6 +797,23 @@
 
 /* ---------- params ---------- */
 
+.ds-protocol-hint {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.ds-protocol-hint .ds-muted {
+  flex: 1;
+  font-size: 10px;
+}
+
 .ds-params__bar {
   display: flex;
   align-items: center;

@@ -1,22 +1,50 @@
 import { useState } from 'react';
 import { useStudio } from '../state/studio';
-import type { Endpoint } from '../types';
+import type { Endpoint, ProtocolId } from '../types';
 import { joinUrl } from '../lib/utils';
 import { useEnv } from '../lib/useEnv';
+import { PROTOCOLS, getProtocol } from '../lib/protocols';
 import { Icon } from './Icons';
 import { Button, IconButton, Select, TextInput } from './ui';
 
-export const PROVIDERS = [
+export interface ProviderTemplate {
+  id: string;
+  name: string;
+  protocol: ProtocolId;
+  baseUrl: string;
+  path: string;
+  models: string[];
+}
+
+export const PROVIDERS: ProviderTemplate[] = [
   {
     id: 'deepseek',
     name: 'DeepSeek',
+    protocol: 'openai-chat',
     baseUrl: 'https://api.deepseek.com',
     path: '/chat/completions',
     models: ['deepseek-flash', 'deepseek-v4-pro'],
   },
   {
+    id: 'deepseek-responses',
+    name: 'DeepSeek Responses',
+    protocol: 'deepseek-responses',
+    baseUrl: 'https://api.deepseek.com',
+    path: '/responses',
+    models: ['deepseek-flash', 'deepseek-v4-pro'],
+  },
+  {
+    id: 'deepseek-anthropic',
+    name: 'DeepSeek Anthropic',
+    protocol: 'anthropic-messages',
+    baseUrl: 'https://api.deepseek.com/anthropic',
+    path: '/v1/messages',
+    models: ['deepseek-flash', 'deepseek-v4-pro'],
+  },
+  {
     id: 'deepseek-beta',
     name: 'DeepSeek Beta',
+    protocol: 'openai-chat',
     baseUrl: 'https://api.deepseek.com/beta',
     path: '/chat/completions',
     models: ['deepseek-flash', 'deepseek-v4-pro'],
@@ -24,13 +52,39 @@ export const PROVIDERS = [
   {
     id: 'deepseek-fim',
     name: 'DeepSeek FIM',
+    protocol: 'openai-chat',
     baseUrl: 'https://api.deepseek.com/beta',
     path: '/completions',
     models: ['deepseek-flash', 'deepseek-v4-pro'],
   },
   {
+    id: 'minimax',
+    name: 'MiniMax（国内）',
+    protocol: 'minimax-chat',
+    baseUrl: 'https://api.minimaxi.com',
+    path: '/v1/text/chatcompletion_v2',
+    models: ['MiniMax-M3.1-Flash', 'MiniMax-M3'],
+  },
+  {
+    id: 'minimax-intl',
+    name: 'MiniMax（国际）',
+    protocol: 'minimax-chat',
+    baseUrl: 'https://api.minimax.io',
+    path: '/v1/text/chatcompletion_v2',
+    models: ['MiniMax-M3.1-Flash', 'MiniMax-M3'],
+  },
+  {
+    id: 'minimax-openai',
+    name: 'MiniMax OpenAI 兼容',
+    protocol: 'openai-chat',
+    baseUrl: 'https://api.minimaxi.com/v1',
+    path: '/chat/completions',
+    models: ['MiniMax-M3.1-Flash', 'MiniMax-M3'],
+  },
+  {
     id: 'openai',
     name: 'OpenAI',
+    protocol: 'openai-chat',
     baseUrl: 'https://api.openai.com/v1',
     path: '/chat/completions',
     models: ['gpt-5', 'gpt-5-mini', 'gpt-4.1', 'gpt-4o', 'o3'],
@@ -38,20 +92,31 @@ export const PROVIDERS = [
   {
     id: 'custom',
     name: '自定义 / 中转',
+    protocol: 'openai-chat',
     baseUrl: '',
     path: '/chat/completions',
     models: [],
   },
 ];
 
-function detectProvider(baseUrl: string, path: string) {
-  if (baseUrl.includes('api.deepseek.com/beta')) {
-    const isFim = /\/completions\/?$/.test(path) && !path.includes('/chat/');
-    return isFim ? PROVIDERS[2] : PROVIDERS[1];
+function detectProvider(baseUrl: string, path: string): ProviderTemplate {
+  if (baseUrl.includes('api.deepseek.com')) {
+    if (baseUrl.includes('/beta')) {
+      const isFim = /\/completions\/?$/.test(path) && !path.includes('/chat/');
+      return isFim ? PROVIDERS[4] : PROVIDERS[3];
+    }
+    if (path.includes('/responses')) return PROVIDERS[1];
+    if (baseUrl.includes('/anthropic')) return PROVIDERS[2];
+    return PROVIDERS[0];
   }
-  if (baseUrl.includes('api.deepseek.com')) return PROVIDERS[0];
-  if (baseUrl.includes('api.openai.com')) return PROVIDERS[3];
-  return PROVIDERS[4];
+  if (baseUrl.includes('api.minimax')) {
+    if (path.includes('chatcompletion_v2')) {
+      return baseUrl.includes('minimax.io') ? PROVIDERS[6] : PROVIDERS[5];
+    }
+    return PROVIDERS[7];
+  }
+  if (baseUrl.includes('api.openai.com')) return PROVIDERS[8];
+  return PROVIDERS[9];
 }
 
 export function EndpointPanel() {
@@ -74,11 +139,14 @@ export function EndpointPanel() {
     const next = PROVIDERS.find((item) => item.id === id);
     if (!next) return;
     patch({
+      protocol: next.protocol,
       baseUrl: next.baseUrl,
       path: next.path,
       model: next.id === 'custom' ? endpoint.model : next.models[0],
     });
   };
+
+  const protocol = getProtocol(endpoint.protocol);
 
   return (
     <div className="ds-endpoint">
@@ -167,6 +235,34 @@ export function EndpointPanel() {
 
       {advancedOpen && (
         <div className="ds-endpoint__advanced">
+          <div className="ds-advanced__block">
+            <div className="ds-advanced__title">
+              协议
+              <span className="ds-muted">决定请求体结构和响应解析方式</span>
+            </div>
+            <div className="ds-advanced__keyrow">
+              <Select
+                value={endpoint.protocol}
+                options={PROTOCOLS.map((item) => ({ value: item.id, label: item.label }))}
+                onChange={(value) => patch({ protocol: value as ProtocolId })}
+              />
+            </div>
+            <div className="ds-advanced__url">
+              <span>支持</span>
+              <code>
+                {[
+                  protocol.capabilities.supportsTools && 'tools',
+                  protocol.capabilities.supportsImages && 'vision',
+                  protocol.capabilities.supportsJsonSchema && 'json_schema',
+                  protocol.capabilities.supportsFiles && 'files',
+                  `temperature ${protocol.capabilities.temperature.min}–${protocol.capabilities.temperature.max}`,
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </code>
+            </div>
+          </div>
+
           <div className="ds-advanced__block">
             <div className="ds-advanced__title">
               API Key
