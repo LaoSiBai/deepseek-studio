@@ -4,8 +4,8 @@ import { Icon } from './Icons';
 import { toast } from './ui';
 
 interface Props {
-  mode: 'studio' | 'chat';
-  onModeChange: (mode: 'studio' | 'chat') => void;
+  mode: 'studio' | 'chat' | 'image';
+  onModeChange: (mode: 'studio' | 'chat' | 'image') => void;
   run: RunState | null;
   canSend: boolean;
   blockReason: string | null;
@@ -84,28 +84,40 @@ export function TopBar({
           >
             Chat
           </button>
+          <button
+            type="button"
+            className={mode === 'image' ? 'is-active' : ''}
+            onClick={() => onModeChange('image')}
+            title="生图：调用 MiniMax H3-Image 生成图片"
+          >
+            生图
+          </button>
         </div>
-        <span className="ds-topbar__workspace" title={activePreset?.name ?? '未保存的工作区'}>
-          {activePreset?.name ?? '未命名工作区'}
-          {state.dirty && <span className="ds-dirtydot" title="有未保存的修改" />}
-        </span>
-        <button type="button" className="ds-textbtn" onClick={save} title="保存到预设（Ctrl/⌘ + S）">
-          <Icon name="check" size={11} />
-          保存
-        </button>
-        <button
-          type="button"
-          className="ds-textbtn"
-          onClick={() => {
-            if (state.dirty && !window.confirm('当前工作区有未保存的修改，确定新建？')) return;
-            dispatch({ type: 'workspace/reset' });
-            toast('已新建空白工作区');
-          }}
-          title="新建空白工作区"
-        >
-          <Icon name="plus" size={11} />
-          新建
-        </button>
+        {mode !== 'image' && (
+          <>
+            <span className="ds-topbar__workspace" title={activePreset?.name ?? '未保存的工作区'}>
+              {activePreset?.name ?? '未命名工作区'}
+              {state.dirty && <span className="ds-dirtydot" title="有未保存的修改" />}
+            </span>
+            <button type="button" className="ds-textbtn" onClick={save} title="保存到预设（Ctrl/⌘ + S）">
+              <Icon name="check" size={11} />
+              保存
+            </button>
+            <button
+              type="button"
+              className="ds-textbtn"
+              onClick={() => {
+                if (state.dirty && !window.confirm('当前工作区有未保存的修改，确定新建？')) return;
+                dispatch({ type: 'workspace/reset' });
+                toast('已新建空白工作区');
+              }}
+              title="新建空白工作区"
+            >
+              <Icon name="plus" size={11} />
+              新建
+            </button>
+          </>
+        )}
       </div>
 
       <div className="ds-topbar__right">

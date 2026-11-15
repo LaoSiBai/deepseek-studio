@@ -16,6 +16,7 @@
     "smoke": "node scripts/ui-smoke-2.mjs",
     "smoke:mobile": "node scripts/ui-mobile-check.mjs",
     "smoke:protocols": "node scripts/ui-protocols-check.mjs",
+    "smoke:imagegen": "node scripts/ui-imagegen-check.mjs",
     "check": "tsc -b"
   },
   "dependencies": {

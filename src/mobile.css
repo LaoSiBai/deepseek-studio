@@ -289,4 +289,19 @@
   .ds-app .ds-metric:nth-child(2n) {
     border-right: 0;
   }
+
+  .ds-app .ds-imagegen {
+    grid-template-columns: 1fr;
+    overflow-y: auto;
+  }
+
+  .ds-app .ds-imagegen__form {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    overflow: visible;
+  }
+
+  .ds-app .ds-imagegen__results {
+    overflow: visible;
+  }
 }

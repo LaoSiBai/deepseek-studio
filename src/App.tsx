@@ -13,11 +13,12 @@ import { ParamsPanel } from './components/ParamsPanel';
 import { RawPanel } from './components/RawPanel';
 import { ResponsePanel } from './components/ResponsePanel';
 import { ChatPanel } from './components/ChatPanel';
+import { ImagePanel } from './components/ImagePanel';
 import { ToastHost, toast } from './components/ui';
 import { Icon } from './components/Icons';
 
 type WorkTab = 'messages' | 'params' | 'raw';
-type Mode = 'studio' | 'chat';
+type Mode = 'studio' | 'chat' | 'image';
 
 const WORK_TABS: { id: WorkTab; label: string }[] = [
   { id: 'messages', label: '上下文' },
@@ -66,7 +67,8 @@ function Studio() {
   const [tab, setTab] = useState<WorkTab>('messages');
   const [mode, setMode] = useState<Mode>(() => {
     try {
-      return localStorage.getItem(MODE_KEY) === 'chat' ? 'chat' : 'studio';
+      const saved = localStorage.getItem(MODE_KEY);
+      return saved === 'chat' || saved === 'image' ? saved : 'studio';
     } catch {
       return 'studio';
     }
@@ -465,7 +467,7 @@ function Studio() {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const mod = event.ctrlKey || event.metaKey;
-      if (mode !== 'chat' && mod && event.key === 'Enter') {
+      if (mode === 'studio' && mod && event.key === 'Enter') {
         event.preventDefault();
         void send();
         return;
@@ -510,7 +512,9 @@ function Studio() {
         <MemoSidebar collapsed={sidebarCollapsed} onNavigate={closeDrawer} />
         <div className="ds-mobile-backdrop" onClick={closeDrawer} />
 
-        {mode === 'chat' ? (
+        {mode === 'image' ? (
+          <ImagePanel />
+        ) : mode === 'chat' ? (
           <ChatPanel
             run={run}
             running={Boolean(running)}

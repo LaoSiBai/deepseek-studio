@@ -242,6 +242,36 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // MiniMax 生图：返回 SVG data URL，便于离线验证
+  if (req.method === 'POST' && pathOnly.endsWith('/v1/images/generations')) {
+    let raw = '';
+    req.on('data', (chunk) => {
+      raw += chunk;
+    });
+    req.on('end', () => {
+      let body = {};
+      try {
+        body = JSON.parse(raw || '{}');
+      } catch {
+        /* ignore */
+      }
+      if (body.model === 'mock-image-error') {
+        sendJson(res, 400, { error: { message: 'mock: image generation failed' } });
+        return;
+      }
+      const n = Math.min(Math.max(Number(body.n) || 1, 1), 4);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="360"><rect width="640" height="360" fill="#4d6bfe"/><text x="320" y="190" font-size="30" fill="#fff" text-anchor="middle" font-family="sans-serif">MiniMax mock</text></svg>`;
+      const url = `data:image/svg+xml,${encodeURIComponent(svg)}`;
+      const data = Array.from({ length: n }, () => ({
+        url,
+        size: '640x360',
+        revised_prompt: body.prompt ?? 'mock prompt',
+      }));
+      sendJson(res, 200, { data, output_format: 'jpeg', usage: { generated_images: n } });
+    });
+    return;
+  }
+
   const isMinimax = target.includes('/v1/text/chatcompletion_v2');
   const isResponses = /\/responses\/?$/.test(target);
   const isAnthropic = target.includes('/anthropic') && target.includes('/v1/messages');

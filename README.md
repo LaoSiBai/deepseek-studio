@@ -215,6 +215,17 @@ DeepSeek 官方端点（`api.deepseek.com`）在三个协议里都支持：
 
 这些字段只在 `api.deepseek.com` 端点注入，中转/自定义端点不会带。服务端工具与 `thinking` 可以组合：关闭 thinking 是普通联网搜索，开启后是深度思考搜索。
 
+## 生图
+
+顶栏切到 **生图**，用 MiniMax H3-Image 生成图片：
+
+- 提示词、模型（H3-Image / H3-Image-Highspeed）、宽高比 + 面积（1K/2K/4K）、数量、返回格式
+- 端点默认 `https://api.minimaxi.com`，国际版改成 `https://api.minimax.io`
+- key 复用「连接设置」里填的 MiniMax key
+- 结果支持下载，失败项会单独标注；切换模式再回来保留最近一次结果
+
+生图按张计费，不会自动重试；实际提示词（`revised_prompt`）可以在结果卡片里展开查看。
+
 ## 部署
 
 线上地址：**https://studio.laosibai.com/**（自定义域，GitHub Pages 托管）
